@@ -14,8 +14,7 @@ spec:
     - ReadWriteMany
   hostPath:
     path: "/mnt/data"
-  storageClassName: bamboo-shared-sc
-
+  storageClassName: standard
 ---
 kind: PersistentVolumeClaim
 apiVersion: v1
@@ -29,3 +28,4 @@ spec:
   resources:
     requests:
       storage: 5Gi
+  storageClassName: standard
