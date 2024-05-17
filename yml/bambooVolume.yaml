@@ -1,0 +1,60 @@
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: bamboo-shared-pv
+spec:
+    capacity:
+      storage: 2Gi
+    accessModes:
+      - ReadWriteMany
+    hostPath:
+     path: "/opt/shared"
+    storageClassName: bamboo-shared-sc
+
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: bamboo-local-pv
+spec:
+    capacity:
+      storage: 2Gi
+    accessModes:
+      - ReadWriteOnce
+    hostPath:
+     path: "/opt/home"
+    storageClassName: bamboo-local-sc
+
+# claim to be used by Bamboo node to use the PV above, This  is the value added to Bamboo or the application 
+# share dvloume configuration
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bamboo-shared-home-claim
+spec:
+  storageClassName: bamboo-shared-sc
+  accessModes:
+    - ReadWriteMany
+  volumeMode: Filesystem
+  volumeName: bamboo-shared-pv
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bamboo-local-home-claim
+spec:
+  storageClassName: bamboo-local-sc
+  accessModes:
+    - ReadWriteOnce
+  volumeMode: Filesystem
+  volumeName: bamboo-local-pv
+  resources:
+    requests:
+      storage: 1Gi
