@@ -1,0 +1,80 @@
+apiVersion: "eksctl.io/v1alpha5"
+kind: ClusterConfig
+metadata:
+  name: voseghale-cluster
+  region: us-east-1
+  version: "1.28"
+  tags:
+    resource_owner: "voseghale"
+    cost_allocation:	"Enterprise On-Prem Support"
+    service_name: "Kube Training - Bamboo"
+    business_unit: "Enterprise On-Prem Support"
+    power_nap: "120"
+
+vpc:  # vpc-0c99779ddb12248e2 / CSS-PT-USWEST2
+  subnets:
+    public: # The public subnet used must enable automatic IP address allocation
+     us-east-1a:
+       id: subnet-054120c25e8bde2e9
+       cidr: 10.0.0.0/20
+     us-east-1b:
+       id: subnet-081a8b6b96b7f995c
+       cidr: 10.0.16.0/20
+
+iam:
+  withOIDC: true
+  serviceAccounts: # Service account to be used by the EBS and EFS drivers to provision Persistent Volumes
+    # used for the cluster storage.
+    - metadata:
+        name: ebs-csi-controller-sa
+        namespace: kube-system
+        labels:
+          app.kubernetes.io/name: aws-ebs-csi-driver
+          name: ebs-csi-controller-sa
+        annotations:
+          eks.amazonaws.com/role-arn: arn:aws:iam::152056072937:role/atlassianEKSClusterRole
+      attachRoleARN: arn:aws:iam::152056072937:role/atlassianEKSClusterRole
+
+    - metadata:
+        name: efs-csi-controller-sa
+        namespace: kube-system
+        labels:
+          app.kubernetes.io/name: aws-efs-csi-driver
+          name: efs-csi-node-sa
+        annotations:
+          eks.amazonaws.com/role-arn: arn:aws:iam::152056072937:role/atlassianEKSClusterRole
+      attachRoleARN: arn:aws:iam::152056072937:role/atlassianEKSClusterRole
+
+addons: # The Kubernetes EBS and EFS Drivers
+  - name: vpc-cni
+    version: "v1.15.1-eksbuild.1"
+    attachPolicyARNs:
+      - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+  - name: aws-efs-csi-driver
+    version: "v2.0.1-eksbuild.1"
+    attachPolicyARNs:
+      - arn:aws:iam::aws:policy/service-role/AmazonEFSCSIDriverPolicy
+  - name: aws-ebs-csi-driver
+    version: "v1.30.0-eksbuild.1"
+    attachPolicyARNs:
+      - arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy
+    resolveConflicts: overwrite
+  - name: kube-proxy
+    version: "v1.28.2-eksbuild.2"
+
+
+managedNodeGroups: # Managed Node group
+  - name: jvc-node
+    instanceType: c3.xlarge
+    desiredCapacity: 1
+    minSize: 1
+    maxSize: 1
+    ssh:
+      allow: true
+      publicKeyPath: /Users/voseghale/dev/kubernetes-workshop/custom-rsa.pub
+    tags:
+      resource_owner: "voseghale"
+      cost_allocation:	"Enterprise On-Prem Support"
+      service_name: "Kube Training - Bamboo"
+      business_unit: "Enterprise On-Prem Support"
+      power_nap: "120"

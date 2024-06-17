@@ -38,7 +38,7 @@ spec:
              name: postgres-config
         volumeMounts:
         - name: postgres-claim
-          mountPath: /var/lib/postgresql/data
+          mountPath: /var/postgress/data
       tolerations:
       - key: node.kubernetes.io/unreachable
         effect: NoSchedule
@@ -57,11 +57,8 @@ metadata:
 spec:
   selector:
     app: postgres
-  type: ClusterIP
+  type: NodePort
   sessionAffinity: None
-  sessionAffinityConfig:
-    clientIP:
-      timeoutSeconds: 10800
   ports:
   - name: postgres
     protocol: TCP

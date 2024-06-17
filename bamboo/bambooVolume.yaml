@@ -1,0 +1,90 @@
+---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: bamboo-shared-sc
+provisioner: efs.csi.aws.com
+parameters:
+  provisioningMode: efs-ap
+  fileSystemId: fs-0edd7b00813215471
+  directoryPerms: "700"
+  gidRangeStart: "1000"
+  gidRangeEnd: "2100"
+  basePath: "/k8s"
+  claimer: efs.csi.aws.com
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: bamboo-shared-pv
+spec:
+  capacity:
+    storage: 1Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  storageClassName: bamboo-shared-sc
+  persistentVolumeReclaimPolicy: Retain
+  mountOptions: # For more information on EFS mount considerations https://docs.aws.amazon.com/efs/latest/ug/mounting-fs-mount-cmd-general.html
+    - rw
+    - _netdev
+  csi:
+    driver: efs.csi.aws.com
+    volumeHandle: fs-0edd7b00813215471
+---
+# claim to be used by Bamboo node to use the PV above, This  is the value added to Bamboo or the application 
+# share dvloume configuration
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bamboo-shared-home-claim
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: bamboo-shared-sc
+  volumeMode: Filesystem
+  volumeName: bamboo-shared-pv
+  resources:
+    requests:
+      storage: 1Gi
+
+
+
+
+
+
+
+# # claim to be used by Bamboo node to use the PV above, This  is the value added to Bamboo or the application 
+# # share dvloume configuration
+# ---
+# apiVersion: v1
+# kind: PersistentVolumeClaim
+# metadata:
+#   name: bamboo-shared-home-claim
+#   labels:
+#     app: bamboo
+# spec:
+#   accessModes:
+#     - ReadWriteOnce
+#   resources:
+#     requests:
+#       storage: 1Gi
+#   storageClassName: atlassian-kubernetes-workshop-sc
+  
+# ---
+# apiVersion: v1
+# kind: PersistentVolumeClaim
+# metadata:
+#   name: bamboo-local-home-claim
+#   labels:
+#     app: bamboo
+# spec:
+#   accessModes:
+#     - ReadWriteOnce
+#   resources:
+#     requests:
+#       storage: 1Gi
+#   storageClassName: atlassian-kubernetes-workshop-sc
+

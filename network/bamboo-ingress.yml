@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  namespace: default
+  name: bamboo-ingress
+  labels:
+    app.kubernetes.io/instance: bamboo
+    app.kubernetes.io/name: bamboo
+
+spec:
+  ingressClassName: haproxy
+  rules:
+  - host: vickezi.com
+    http:
+      paths:
+      - backend:
+          service:
+            name: bamboo
+            port:
+              number: 80
+        path: /
+        pathType: Prefix
+  # tls:
+  # - hosts:
+  #   - vickezi.com
+  #   secretName: cert-manager-webhook-ca
+        

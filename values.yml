@@ -75,9 +75,15 @@ database:
 
 volumes:
   localHome:
-    customVolume:
-     persistentVolumeClaim:
-      claimName: "bamboo-local-home-claim"
+    persistentVolumeClaim:
+      create: true
+      storageClassName: "default-workshop-sc"
+      resources:
+        requests:
+          storage: 1Gi
+    persistentVolumeClaimRetentionPolicy:
+      whenDeleted: Delete
+      whenScaled: Retain
     mountPath: "/var/atlassian/application-data/bamboo"
 
   sharedHome:
@@ -111,7 +117,7 @@ volumes:
   # those needs to be defined in bamboo.additionalVolumeMounts
   #
   additional:
-   - name: eksctl-home
+    - name: executables-pv
 
 
 # Ingress configuration
@@ -122,16 +128,16 @@ volumes:
 # https://atlassian.github.io/data-center-helm-charts/userguide/CONFIGURATION/#ingress
 #
 ingress:
-  create: true
+  create: false
   openShiftRoute: false
   routeHttpHeaders: {}
-  className: "nginx"
-  nginx: true
+  className: "haproxy"
+  nginx: false
   maxBodySize: 250m
   proxyConnectTimeout: 60
   proxyReadTimeout: 60
   proxySendTimeout: 60
-  host: k8s-71628.prod.atl-cd.net
+  host: vickezi.com
   path:
 
   # -- The custom annotations that should be applied to the Ingress Resource.
@@ -263,111 +269,33 @@ bamboo:
   # K8s Service configuration
   #
   service:
-
-    # -- The port on which the Bamboo K8s Service will listen for http traffic
-    #
     port: 80
-
-    # -- The type of K8s service to use for Bamboo
-    #
     type: ClusterIP
-
-    # -- Session affinity type. If you want to make sure that connections from a particular client
-    # are passed to the same pod each time, set sessionAffinity to ClientIP.
-    # See: https://kubernetes.io/docs/reference/networking/virtual-ips/#session-affinity
-    #
     sessionAffinity: None
-
-    # -- Session affinity configuration
-    #
     sessionAffinityConfig:
-
       clientIP:
-
-        # -- Specifies the seconds of ClientIP type session sticky time.
-        # The value must be > 0 && <= 86400 (for 1 day) if ServiceAffinity == "ClientIP". Default value is 10800 (for 3 hours).
-        #
         timeoutSeconds:
-
-    # -- Use specific loadBalancerIP. Only applies to service type LoadBalancer.
-    #
     loadBalancerIP:
-
-    # -- The Tomcat context path that Bamboo will use. The ATL_TOMCAT_CONTEXTPATH
-    # will be set automatically.
-    #
     contextPath:
-
-    # -- Additional annotations to apply to the Service
-    #
     annotations: {}
 
   # K8s Service configuration for JMS
   #
   jmsService:
-
-    # -- Whether to create a separate Service for JMS Agent traffic
-    #
-    enabled: false
-
-    # -- The port on which the Bamboo K8s Service will listen for Agent traffic
-    #
+    enabled: true
     port: 54663
-
-    # -- The type of K8s service to use for JMS
-    #
     type: ClusterIP
-
-    # -- Use specific loadBalancerIP. Only applies to service type LoadBalancer.
-    #
-    loadBalancerIP:
-
-    # -- Additional annotations to apply to the JMS Service
-    #
-    annotations: {}
-
-  # Standard K8s field that holds pod-level security attributes and common container settings.
-  # https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
-  # Do not populate when deploying to OpenShift, unless anyuid policy is attached to a service account.
-
-  # -- Whether to apply security context to pod.
-  #
   securityContextEnabled: true
-
   securityContext:
-
-    # -- The GID used by the Bamboo docker image
-    # GID will default to 2005 if not supplied and securityContextEnabled is set to true.
-    # This is intended to ensure that the shared-home volume is group-writeable by the GID used by the Bamboo container.
-    # However, this doesn't appear to work for NFS volumes due to a K8s bug: https://github.com/kubernetes/examples/issues/260
-    #
     fsGroup: 2005
-
-  # -- Standard K8s field that holds security configurations that will be applied to a container.
-  # https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
-  #
   containerSecurityContext: {}
-
-  # -- Boolean to define whether to set local home directory permissions on startup
-  # of Bamboo container. Set to 'false' to disable this behaviour.
-  #
   setPermissions: true
 
   # Port definitions
   #
   ports:
-
-    # -- The port on which the Bamboo container listens for HTTP traffic
-    #
     http: 8085
-
-    # -- JMS port
-    #
     jms: 54663
-
-  # Confirm that Bamboo is up and running with a ReadinessProbe
-  # https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/#define-readiness-probes
-  #
   readinessProbe:
 
     # -- Whether to apply the readinessProbe check to pod.
@@ -521,7 +449,7 @@ bamboo:
 
         # -- Initial CPU request by Bamboo pod
         #
-        cpu: "1m"
+        cpu: "1"
 
         # -- Initial Memory request by Bamboo pod
         #
@@ -646,8 +574,8 @@ bamboo:
   # 'volumes.additional'.
   #
   additionalVolumeMounts:
-    - name: eksctl-home
-      mountPath: /opt/bin
+    - name: executables-pv
+      mountPath: /mnt/lib
 
 
 
@@ -816,11 +744,11 @@ fluentd:
   #
   resources: 
    requests:
-    cpu: "1m"
-    memory: "20Mi"
-  limits:
     cpu: "1"
-    memory: "1G"
+    memory: "200Mi"
+  limits:
+    cpu: "2"
+    memory: "2G"
 
   # -- The command used to start Fluentd. If not supplied the default command
   # will be used: "fluentd -c /fluentd/etc/fluent.conf -v"
@@ -1026,11 +954,19 @@ openshift:
 
 # -- Additional initContainer definitions that will be added to all Bamboo pods
   #
-additionalInitContainers:
-    - name:  eksctl-home-container
-      image: ubuntu
-      volumeMounts:
-        - name: eksctl-home             
-          mountPath: /opt/bin
-      command: ["/bin/bash"]
-      args: ["-c","set -e; apt update; apt upgrade -y;apt install curl tar wget -y;  curl -LO https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl; mv kubectl /opt/bin; chmod +x /opt/bin/kubectl;  ln -s /opt/maven/bin/mvn /usr/local/bin/mvn;ln -s /opt/bin/kubectl /usr/local/bin/kubectl"]
+additionalInitContainers: []
+#     - name:  eksctl-home-container
+#       image: ubuntu
+#       volumeMounts:
+#         - name: executables-pv           
+#           mountPath: /mnt/lib
+#       command: ["/bin/bash"]
+#       args: ["-c","set -e; apt update; apt upgrade -y; \
+#             apt install curl tar wget -y;  curl -LO https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl; \
+#             mv kubectl /mnt/lib; chmod +x /mnt/lib/kubectl; ln -s /mnt/lib/kubectl /usr/local/bin/kubectl"]
+      
+#     - name:  catalina-permission
+#       image: ubuntu
+#       command: ["/bin/bash"]
+#       args: ["-c","set -e; mkdir  -p /opt/atlassian/bamboo; chown 2005:2005 -R /opt/atlassian/bamboo"]
+
